@@ -24,6 +24,13 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://training:training@postgres:5432/training}
       EXERCISES_DATASET_PATH: ${EXERCISES_DATASET_PATH:-/data/exercises-dataset/data/exercises.json}
+      CURATED_EXERCISES_SEED_PATH: ${CURATED_EXERCISES_SEED_PATH:-/data/curated_exercises.seed.json}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-replace_me}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:-}
+      JWT_SECRET: ${JWT_SECRET:-replace_me_with_long_random_secret}
+      ADMIN_SECRET: ${ADMIN_SECRET:-replace_me}
+      ALLOW_ADMIN_ENDPOINTS: ${ALLOW_ADMIN_ENDPOINTS:-false}
+      RAW_MEDIA_BASE: ${RAW_MEDIA_BASE:-https://raw.githubusercontent.com/olegbal/exercises-dataset/main/}
     ports:
       - "8000:8000"
     volumes:
