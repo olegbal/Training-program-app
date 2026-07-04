@@ -3,7 +3,7 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from app.config import BotSettings, get_settings
+from app.config import get_settings
 from app.handlers import router
 
 logging.basicConfig(level=logging.INFO)
