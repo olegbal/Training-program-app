@@ -5,6 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.exercise import Exercise
 from app.models.set import WorkoutSet
 from app.models.template import TemplateExercise, WorkoutTemplate
 from app.models.user import User
@@ -21,6 +22,14 @@ class WorkoutSessionNotFoundError(LookupError):
 
 
 class WorkoutExerciseNotFoundError(LookupError):
+    pass
+
+
+class WorkoutSetNotFoundError(LookupError):
+    pass
+
+
+class ReplacementExerciseNotFoundError(LookupError):
     pass
 
 
@@ -59,6 +68,26 @@ def start_today_session(db: Session, *, user: User, requested_date: date) -> Wor
     return session
 
 
+def list_workout_history(db: Session, *, user: User, limit: int = 20) -> list[WorkoutSession]:
+    return list(
+        db.scalars(
+            select(WorkoutSession)
+            .where(WorkoutSession.user_id == user.id)
+            .order_by(WorkoutSession.date.desc(), WorkoutSession.created_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+
+def get_workout_session(db: Session, *, user: User, session_id: uuid.UUID) -> WorkoutSession:
+    session = db.scalars(
+        select(WorkoutSession).where(WorkoutSession.id == session_id, WorkoutSession.user_id == user.id)
+    ).one_or_none()
+    if session is None:
+        raise WorkoutSessionNotFoundError
+    return session
+
+
 def add_workout_set(
     db: Session,
     *,
@@ -88,9 +117,68 @@ def add_workout_set(
     return workout_set
 
 
+def update_workout_set(
+    db: Session,
+    *,
+    user: User,
+    set_id: uuid.UUID,
+    weight: Decimal | None,
+    reps: int | None,
+    rpe: Decimal | None,
+    is_warmup: bool,
+    notes: str | None,
+) -> WorkoutSet:
+    workout_set = get_owned_workout_set(db, user=user, set_id=set_id)
+    workout_set.weight = weight
+    workout_set.reps = reps
+    workout_set.rpe = rpe
+    workout_set.is_warmup = is_warmup
+    workout_set.notes = notes
+    db.commit()
+    db.refresh(workout_set)
+    return workout_set
+
+
+def delete_workout_set(db: Session, *, user: User, set_id: uuid.UUID) -> None:
+    workout_set = get_owned_workout_set(db, user=user, set_id=set_id)
+    db.delete(workout_set)
+    db.commit()
+
+
 def complete_workout_exercise(db: Session, *, user: User, workout_exercise_id: uuid.UUID) -> WorkoutExercise:
     workout_exercise = get_owned_workout_exercise(db, user=user, workout_exercise_id=workout_exercise_id)
     workout_exercise.status = "completed"
+    db.commit()
+    db.refresh(workout_exercise)
+    return workout_exercise
+
+
+def skip_workout_exercise(db: Session, *, user: User, workout_exercise_id: uuid.UUID) -> WorkoutExercise:
+    workout_exercise = get_owned_workout_exercise(db, user=user, workout_exercise_id=workout_exercise_id)
+    workout_exercise.status = "skipped"
+    db.commit()
+    db.refresh(workout_exercise)
+    return workout_exercise
+
+
+def replace_workout_exercise(
+    db: Session,
+    *,
+    user: User,
+    workout_exercise_id: uuid.UUID,
+    replacement_exercise_id: uuid.UUID,
+    notes: str | None,
+) -> WorkoutExercise:
+    workout_exercise = get_owned_workout_exercise(db, user=user, workout_exercise_id=workout_exercise_id)
+    replacement = db.scalars(select(Exercise).where(Exercise.id == replacement_exercise_id)).one_or_none()
+    if replacement is None:
+        raise ReplacementExerciseNotFoundError
+
+    workout_exercise.replaced_from_exercise_id = workout_exercise.exercise_id
+    workout_exercise.exercise_id = replacement.id
+    workout_exercise.exercise = replacement
+    workout_exercise.status = "replaced"
+    workout_exercise.notes = notes
     db.commit()
     db.refresh(workout_exercise)
     return workout_exercise
@@ -107,6 +195,18 @@ def get_owned_workout_exercise(db: Session, *, user: User, workout_exercise_id: 
     return workout_exercise
 
 
+def get_owned_workout_set(db: Session, *, user: User, set_id: uuid.UUID) -> WorkoutSet:
+    workout_set = db.scalars(
+        select(WorkoutSet)
+        .join(WorkoutExercise, WorkoutSet.workout_exercise_id == WorkoutExercise.id)
+        .join(WorkoutSession, WorkoutExercise.session_id == WorkoutSession.id)
+        .where(WorkoutSet.id == set_id, WorkoutSession.user_id == user.id)
+    ).one_or_none()
+    if workout_set is None:
+        raise WorkoutSetNotFoundError
+    return workout_set
+
+
 def complete_workout_session(db: Session, *, user: User, session_id: uuid.UUID) -> WorkoutSession:
     session = db.scalars(
         select(WorkoutSession).where(WorkoutSession.id == session_id, WorkoutSession.user_id == user.id)
@@ -118,6 +218,19 @@ def complete_workout_session(db: Session, *, user: User, session_id: uuid.UUID) 
     session.status = "completed"
     session.started_at = session.started_at or now
     session.completed_at = now
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+def skip_workout_session(db: Session, *, user: User, session_id: uuid.UUID) -> WorkoutSession:
+    session = db.scalars(
+        select(WorkoutSession).where(WorkoutSession.id == session_id, WorkoutSession.user_id == user.id)
+    ).one_or_none()
+    if session is None:
+        raise WorkoutSessionNotFoundError
+
+    session.status = "skipped"
     db.commit()
     db.refresh(session)
     return session

@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,13 +17,22 @@ from app.models.user import User
 from app.models.workout import WorkoutExercise, WorkoutSession
 from app.routes.admin import require_admin
 from app.services.workout_sessions import (
+    ReplacementExerciseNotFoundError,
     WorkoutExerciseNotFoundError,
     WorkoutSessionNotFoundError,
+    WorkoutSetNotFoundError,
     WorkoutTemplateNotFoundError,
     add_workout_set,
     complete_workout_exercise,
     complete_workout_session,
+    delete_workout_set,
+    get_workout_session,
+    list_workout_history,
+    replace_workout_exercise,
+    skip_workout_exercise,
+    skip_workout_session,
     start_today_session,
+    update_workout_set,
 )
 from app.services.workout_templates import SeedTemplatesStats, project_weekday, seed_workout_templates
 
@@ -65,11 +74,28 @@ class TodayWorkoutRead(BaseModel):
     exercises: list[TodayExerciseRead]
 
 
+class WorkoutHistoryRead(BaseModel):
+    sessions: list[TodayWorkoutRead]
+
+
 class WorkoutSetCreate(BaseModel):
     weight: Decimal | None = None
     reps: int | None = None
     rpe: Decimal | None = None
     is_warmup: bool = False
+    notes: str | None = None
+
+
+class WorkoutSetUpdate(BaseModel):
+    weight: Decimal | None = None
+    reps: int | None = None
+    rpe: Decimal | None = None
+    is_warmup: bool = False
+    notes: str | None = None
+
+
+class WorkoutExerciseReplace(BaseModel):
+    exercise_id: uuid.UUID
     notes: str | None = None
 
 
@@ -130,6 +156,31 @@ def start_today_workout(
     return _serialize_workout_session(session)
 
 
+@router.get("/workouts/history", response_model=WorkoutHistoryRead)
+def get_workout_history(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> WorkoutHistoryRead:
+    sessions = list_workout_history(db, user=current_user, limit=limit)
+    return WorkoutHistoryRead(
+        sessions=[_serialize_workout_session(session) for session in sessions]
+    )
+
+
+@router.get("/workouts/{session_id}", response_model=TodayWorkoutRead)
+def get_workout(
+    session_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TodayWorkoutRead:
+    try:
+        session = get_workout_session(db, user=current_user, session_id=session_id)
+    except WorkoutSessionNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout session was not found") from None
+    return _serialize_workout_session(session)
+
+
 @router.post("/workouts/{session_id}/complete", response_model=TodayWorkoutRead)
 def complete_workout(
     session_id: uuid.UUID,
@@ -138,6 +189,19 @@ def complete_workout(
 ) -> TodayWorkoutRead:
     try:
         session = complete_workout_session(db, user=current_user, session_id=session_id)
+    except WorkoutSessionNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout session was not found") from None
+    return _serialize_workout_session(session)
+
+
+@router.post("/workouts/{session_id}/skip", response_model=TodayWorkoutRead)
+def skip_workout(
+    session_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TodayWorkoutRead:
+    try:
+        session = skip_workout_session(db, user=current_user, session_id=session_id)
     except WorkoutSessionNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout session was not found") from None
     return _serialize_workout_session(session)
@@ -166,6 +230,42 @@ def create_workout_set(
     return _serialize_workout_set(workout_set)
 
 
+@router.put("/sets/{set_id}", response_model=WorkoutSetRead)
+def update_set(
+    set_id: uuid.UUID,
+    payload: WorkoutSetUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WorkoutSetRead:
+    try:
+        workout_set = update_workout_set(
+            db,
+            user=current_user,
+            set_id=set_id,
+            weight=payload.weight,
+            reps=payload.reps,
+            rpe=payload.rpe,
+            is_warmup=payload.is_warmup,
+            notes=payload.notes,
+        )
+    except WorkoutSetNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout set was not found") from None
+    return _serialize_workout_set(workout_set)
+
+
+@router.delete("/sets/{set_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_set(
+    set_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Response:
+    try:
+        delete_workout_set(db, user=current_user, set_id=set_id)
+    except WorkoutSetNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout set was not found") from None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post("/workout-exercises/{workout_exercise_id}/complete", response_model=TodayExerciseRead)
 def complete_exercise(
     workout_exercise_id: uuid.UUID,
@@ -176,6 +276,44 @@ def complete_exercise(
         workout_exercise = complete_workout_exercise(db, user=current_user, workout_exercise_id=workout_exercise_id)
     except WorkoutExerciseNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout exercise was not found") from None
+    return _serialize_workout_exercise(workout_exercise)
+
+
+@router.post("/workout-exercises/{workout_exercise_id}/skip", response_model=TodayExerciseRead)
+def skip_exercise(
+    workout_exercise_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TodayExerciseRead:
+    try:
+        workout_exercise = skip_workout_exercise(db, user=current_user, workout_exercise_id=workout_exercise_id)
+    except WorkoutExerciseNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout exercise was not found") from None
+    return _serialize_workout_exercise(workout_exercise)
+
+
+@router.post("/workout-exercises/{workout_exercise_id}/replace", response_model=TodayExerciseRead)
+def replace_exercise(
+    workout_exercise_id: uuid.UUID,
+    payload: WorkoutExerciseReplace,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TodayExerciseRead:
+    try:
+        workout_exercise = replace_workout_exercise(
+            db,
+            user=current_user,
+            workout_exercise_id=workout_exercise_id,
+            replacement_exercise_id=payload.exercise_id,
+            notes=payload.notes,
+        )
+    except WorkoutExerciseNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout exercise was not found") from None
+    except ReplacementExerciseNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Replacement exercise was not found",
+        ) from None
     return _serialize_workout_exercise(workout_exercise)
 
 
