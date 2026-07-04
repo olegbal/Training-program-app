@@ -9,6 +9,14 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models.exercise import Exercise
 
+CURATED_FIELDS = {
+    "ru_name",
+    "movement_pattern",
+    "difficulty",
+    "curation_status",
+    "avoid_reason",
+}
+
 
 @dataclass(frozen=True)
 class ImportStats:
@@ -75,6 +83,8 @@ def import_exercise_file(session: Session, input_path: Path) -> ImportStats:
             created += 1
         else:
             for key, value in values.items():
+                if key in CURATED_FIELDS:
+                    continue
                 setattr(existing, key, value)
             updated += 1
 

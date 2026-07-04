@@ -160,3 +160,47 @@ def test_apply_curated_seed_reports_missing_exercise(tmp_path: Path) -> None:
 
     assert stats == SeedStats(seeded=0, missing=1)
     assert session.commits == 1
+
+
+def test_import_preserves_curated_metadata_on_existing_exercise(tmp_path: Path) -> None:
+    input_path = tmp_path / "exercises.json"
+    input_path.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "ex-1",
+                    "name": "sled 45 degrees leg press",
+                    "body_part": "upper legs",
+                    "target": "quadriceps",
+                    "equipment": "sled machine",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    seed_path = tmp_path / "curated.json"
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "source_id": "ex-1",
+                    "ru_name": "Жим ногами",
+                    "movement_pattern": "leg_press",
+                    "difficulty": "intermediate",
+                    "curation_status": "preferred",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    session = FakeSession()
+
+    import_exercise_file(session, input_path)
+    apply_curated_seed_file(session, seed_path)
+    import_exercise_file(session, input_path)
+    exercise = session.by_source_id["ex-1"]
+
+    assert exercise.ru_name == "Жим ногами"
+    assert exercise.movement_pattern == "leg_press"
+    assert exercise.difficulty == "intermediate"
+    assert exercise.curation_status == "preferred"
