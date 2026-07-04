@@ -1,0 +1,114 @@
+:root {
+  color: #17201b;
+  background: #f6f8f4;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 18px;
+  background: #1d5f4a;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #e2ebe5;
+  color: #17372d;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 18px;
+  display: flex;
+  align-items: stretch;
+}
+
+.today-panel {
+  width: min(100%, 680px);
+  margin: 0 auto;
+  padding: 28px 0;
+}
+
+.top-row,
+.progress-line,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.day-label {
+  color: #49655b;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.status-pill--ready {
+  background: #d7f1e2;
+  color: #14533c;
+}
+
+.status-pill--pending {
+  background: #f3e5bf;
+  color: #67480e;
+}
+
+h1 {
+  margin: 54px 0 12px;
+  font-size: clamp(2rem, 9vw, 4rem);
+  line-height: 1;
+}
+
+.focus {
+  max-width: 34rem;
+  margin: 0;
+  color: #41534c;
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+.progress-line {
+  margin: 40px 0 24px;
+  padding: 16px 0;
+  border-top: 1px solid #dce5df;
+  border-bottom: 1px solid #dce5df;
+  color: #41534c;
+}
+
+.progress-line strong {
+  color: #17201b;
+}
+
+.actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}

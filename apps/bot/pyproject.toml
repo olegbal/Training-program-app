@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "training-bot"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "aiogram>=3.23.0",
+  "pydantic>=2.13.4",
+  "pydantic-settings>=2.14.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

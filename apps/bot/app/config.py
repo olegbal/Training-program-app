@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class BotSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="",
@@ -14,25 +14,10 @@ class Settings(BaseSettings):
         enable_decoding=False,
     )
 
-    app_env: str = "development"
-    app_url: str = "https://training.example.com"
-    api_url: str = "https://training.example.com/api"
-    mini_app_url: str = "https://training.example.com"
-
-    database_url: str = "postgresql+psycopg://training:training@localhost:5432/training"
-
+    api_url: str = "http://api:8000"
+    mini_app_url: str = "http://localhost:5173"
     telegram_bot_token: str = Field(default="replace_me")
     telegram_allowed_user_ids: list[int] = Field(default_factory=list)
-
-    jwt_secret: str = Field(default="replace_me_with_long_random_secret")
-    admin_secret: str = Field(default="replace_me")
-
-    exercises_dataset_path: str = "/data/exercises-dataset/data/exercises.json"
-    raw_media_base: str = "https://raw.githubusercontent.com/olegbal/exercises-dataset/main/"
-
-    allow_admin_endpoints: bool = False
-    openai_api_key: str = ""
-    openclaw_enabled: bool = False
 
     @field_validator("telegram_allowed_user_ids", mode="before")
     @classmethod
@@ -45,7 +30,11 @@ class Settings(BaseSettings):
             return [int(item) for item in value]
         raise TypeError("telegram_allowed_user_ids must be a comma-separated string or list of integers")
 
+    @property
+    def has_real_token(self) -> bool:
+        return self.telegram_bot_token not in {"", "replace_me"}
+
 
 @lru_cache
-def get_settings() -> Settings:
-    return Settings()
+def get_settings() -> BotSettings:
+    return BotSettings()
