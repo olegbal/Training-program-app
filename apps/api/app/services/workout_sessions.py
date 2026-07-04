@@ -5,6 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.set import WorkoutSet
 from app.models.template import TemplateExercise, WorkoutTemplate
 from app.models.user import User
 from app.models.workout import WorkoutExercise, WorkoutSession
@@ -16,6 +17,10 @@ class WorkoutTemplateNotFoundError(LookupError):
 
 
 class WorkoutSessionNotFoundError(LookupError):
+    pass
+
+
+class WorkoutExerciseNotFoundError(LookupError):
     pass
 
 
@@ -52,6 +57,54 @@ def start_today_session(db: Session, *, user: User, requested_date: date) -> Wor
     db.commit()
     db.refresh(session)
     return session
+
+
+def add_workout_set(
+    db: Session,
+    *,
+    user: User,
+    workout_exercise_id: uuid.UUID,
+    weight: Decimal | None,
+    reps: int | None,
+    rpe: Decimal | None,
+    is_warmup: bool,
+    notes: str | None,
+) -> WorkoutSet:
+    workout_exercise = get_owned_workout_exercise(db, user=user, workout_exercise_id=workout_exercise_id)
+    next_index = max((item.set_index for item in workout_exercise.sets), default=0) + 1
+    workout_set = WorkoutSet(
+        workout_exercise_id=workout_exercise.id,
+        set_index=next_index,
+        weight=weight,
+        reps=reps,
+        rpe=rpe,
+        is_warmup=is_warmup,
+        notes=notes,
+    )
+    workout_exercise.sets.append(workout_set)
+    db.add(workout_set)
+    db.commit()
+    db.refresh(workout_set)
+    return workout_set
+
+
+def complete_workout_exercise(db: Session, *, user: User, workout_exercise_id: uuid.UUID) -> WorkoutExercise:
+    workout_exercise = get_owned_workout_exercise(db, user=user, workout_exercise_id=workout_exercise_id)
+    workout_exercise.status = "completed"
+    db.commit()
+    db.refresh(workout_exercise)
+    return workout_exercise
+
+
+def get_owned_workout_exercise(db: Session, *, user: User, workout_exercise_id: uuid.UUID) -> WorkoutExercise:
+    workout_exercise = db.scalars(
+        select(WorkoutExercise)
+        .join(WorkoutSession, WorkoutExercise.session_id == WorkoutSession.id)
+        .where(WorkoutExercise.id == workout_exercise_id, WorkoutSession.user_id == user.id)
+    ).one_or_none()
+    if workout_exercise is None:
+        raise WorkoutExerciseNotFoundError
+    return workout_exercise
 
 
 def complete_workout_session(db: Session, *, user: User, session_id: uuid.UUID) -> WorkoutSession:

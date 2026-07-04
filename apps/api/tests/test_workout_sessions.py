@@ -9,6 +9,7 @@ from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.main import create_app
 from app.models.exercise import Exercise
+from app.models.set import WorkoutSet
 from app.models.template import TemplateExercise, WorkoutTemplate
 from app.models.user import User
 from app.models.workout import WorkoutExercise, WorkoutSession
@@ -198,4 +199,85 @@ def test_complete_workout_session_marks_owned_session_completed() -> None:
     assert body["session"]["status"] == "completed"
     assert workout_session.status == "completed"
     assert workout_session.completed_at is not None
+    assert session.commits == 1
+
+
+def test_add_set_creates_next_set_for_owned_workout_exercise() -> None:
+    user = make_user()
+    workout_session = make_started_session(user)
+    workout_exercise = workout_session.workout_exercises[0]
+    workout_exercise.sets = [
+        WorkoutSet(
+            id=uuid.uuid4(),
+            workout_exercise_id=workout_exercise.id,
+            set_index=1,
+            weight=Decimal("80.00"),
+            reps=10,
+            rpe=Decimal("8.0"),
+            is_warmup=False,
+        )
+    ]
+    session = FakeSession([user, workout_exercise])
+    app = create_app()
+    settings = Settings(
+        jwt_secret="jwt-secret",
+        telegram_bot_token="123:bot-token",
+        telegram_allowed_user_ids=[123456789],
+    )
+    token = create_access_token({"sub": str(user.id), "telegram_id": user.telegram_id}, secret="jwt-secret")
+
+    def override_db() -> Iterator[FakeSession]:
+        yield session
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_settings] = lambda: settings
+    client = TestClient(app)
+
+    response = client.post(
+        f"/workout-exercises/{workout_exercise.id}/sets",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"weight": "82.50", "reps": 9, "rpe": "8.5", "is_warmup": False, "notes": "solid"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"]
+    assert body["set_index"] == 2
+    assert body["reps"] == 9
+    assert body["notes"] == "solid"
+    assert workout_exercise.sets[-1].set_index == 2
+    assert workout_exercise.sets[-1].workout_exercise_id == workout_exercise.id
+    assert session.commits == 1
+
+
+def test_complete_workout_exercise_marks_owned_exercise_completed() -> None:
+    user = make_user()
+    workout_session = make_started_session(user)
+    workout_exercise = workout_session.workout_exercises[0]
+    session = FakeSession([user, workout_exercise])
+    app = create_app()
+    settings = Settings(
+        jwt_secret="jwt-secret",
+        telegram_bot_token="123:bot-token",
+        telegram_allowed_user_ids=[123456789],
+    )
+    token = create_access_token({"sub": str(user.id), "telegram_id": user.telegram_id}, secret="jwt-secret")
+
+    def override_db() -> Iterator[FakeSession]:
+        yield session
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_settings] = lambda: settings
+    client = TestClient(app)
+
+    response = client.post(
+        f"/workout-exercises/{workout_exercise.id}/complete",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == str(workout_exercise.id)
+    assert body["status"] == "completed"
+    assert workout_exercise.status == "completed"
     assert session.commits == 1

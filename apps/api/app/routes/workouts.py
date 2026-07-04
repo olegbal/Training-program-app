@@ -11,13 +11,17 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.exercise import Exercise
+from app.models.set import WorkoutSet
 from app.models.template import TemplateExercise, WorkoutTemplate
 from app.models.user import User
 from app.models.workout import WorkoutExercise, WorkoutSession
 from app.routes.admin import require_admin
 from app.services.workout_sessions import (
+    WorkoutExerciseNotFoundError,
     WorkoutSessionNotFoundError,
     WorkoutTemplateNotFoundError,
+    add_workout_set,
+    complete_workout_exercise,
     complete_workout_session,
     start_today_session,
 )
@@ -59,6 +63,24 @@ class TodayExerciseRead(BaseModel):
 class TodayWorkoutRead(BaseModel):
     session: TodaySessionRead
     exercises: list[TodayExerciseRead]
+
+
+class WorkoutSetCreate(BaseModel):
+    weight: Decimal | None = None
+    reps: int | None = None
+    rpe: Decimal | None = None
+    is_warmup: bool = False
+    notes: str | None = None
+
+
+class WorkoutSetRead(BaseModel):
+    id: uuid.UUID
+    set_index: int
+    weight: Decimal | None = None
+    reps: int | None = None
+    rpe: Decimal | None = None
+    is_warmup: bool
+    notes: str | None = None
 
 
 @router.post(
@@ -121,6 +143,42 @@ def complete_workout(
     return _serialize_workout_session(session)
 
 
+@router.post("/workout-exercises/{workout_exercise_id}/sets", response_model=WorkoutSetRead)
+def create_workout_set(
+    workout_exercise_id: uuid.UUID,
+    payload: WorkoutSetCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> WorkoutSetRead:
+    try:
+        workout_set = add_workout_set(
+            db,
+            user=current_user,
+            workout_exercise_id=workout_exercise_id,
+            weight=payload.weight,
+            reps=payload.reps,
+            rpe=payload.rpe,
+            is_warmup=payload.is_warmup,
+            notes=payload.notes,
+        )
+    except WorkoutExerciseNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout exercise was not found") from None
+    return _serialize_workout_set(workout_set)
+
+
+@router.post("/workout-exercises/{workout_exercise_id}/complete", response_model=TodayExerciseRead)
+def complete_exercise(
+    workout_exercise_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TodayExerciseRead:
+    try:
+        workout_exercise = complete_workout_exercise(db, user=current_user, workout_exercise_id=workout_exercise_id)
+    except WorkoutExerciseNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout exercise was not found") from None
+    return _serialize_workout_exercise(workout_exercise)
+
+
 def _serialize_template_exercise(item: TemplateExercise) -> TodayExerciseRead:
     return TodayExerciseRead(
         id=item.id,
@@ -160,7 +218,19 @@ def _serialize_workout_exercise(item: WorkoutExercise) -> TodayExerciseRead:
         planned_rpe=item.rpe_text,
         rest=item.rest_text,
         exercise=_serialize_exercise(item.exercise),
-        sets=[],
+        sets=[_serialize_workout_set(workout_set) for workout_set in item.sets],
+    )
+
+
+def _serialize_workout_set(workout_set: WorkoutSet) -> WorkoutSetRead:
+    return WorkoutSetRead(
+        id=workout_set.id,
+        set_index=workout_set.set_index,
+        weight=workout_set.weight,
+        reps=workout_set.reps,
+        rpe=workout_set.rpe,
+        is_warmup=workout_set.is_warmup,
+        notes=workout_set.notes,
     )
 
 
