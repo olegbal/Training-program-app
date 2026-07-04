@@ -1,57 +1,51 @@
-import { useEffect, useState } from "react";
-
-import { getHealth } from "../api/client";
 import { StatusPill } from "../components/StatusPill";
+import type { TodayWorkout } from "../types/workouts";
 
-export function TodayScreen() {
-  const [apiStatus, setApiStatus] = useState<"checking" | "ok" | "offline">("checking");
+type TodayScreenProps = {
+  workout: TodayWorkout;
+  completedCount: number;
+  onStart: () => void;
+  onHistory: () => void;
+};
 
-  useEffect(() => {
-    let isMounted = true;
-
-    getHealth()
-      .then(() => {
-        if (isMounted) {
-          setApiStatus("ok");
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setApiStatus("offline");
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+export function TodayScreen({ workout, completedCount, onStart, onHistory }: TodayScreenProps) {
+  const total = workout.exercises.length;
+  const isStarted = workout.session.status !== "planned";
 
   return (
-    <main className="app-shell">
-      <section className="today-panel" aria-labelledby="today-title">
-        <div className="top-row">
-          <span className="day-label">Сегодня</span>
-          <StatusPill
-            label={apiStatus === "ok" ? "API online" : apiStatus === "checking" ? "Проверка API" : "API offline"}
-            tone={apiStatus === "ok" ? "ready" : "pending"}
-          />
-        </div>
+    <section className="screen today-panel" aria-labelledby="today-title">
+      <div className="top-row">
+        <span className="day-label">{new Date(workout.session.date).toLocaleDateString("ru-RU", { weekday: "long" })}</span>
+        <StatusPill label={workout.session.status} tone={workout.session.status === "completed" ? "ready" : "pending"} />
+      </div>
 
-        <h1 id="today-title">Training Agent</h1>
-        <p className="focus">Личный трекер тренировок для Telegram Mini App.</p>
+      <h1 id="today-title">{workout.session.title}</h1>
+      <p className="focus">{workout.session.focus}</p>
 
-        <div className="progress-line" aria-label="Прогресс тренировки">
-          <span>Phase 1</span>
-          <strong>Скелет приложения</strong>
-        </div>
+      <div className="progress-line" aria-label="Прогресс тренировки">
+        <span>Прогресс</span>
+        <strong>
+          {completedCount} / {total}
+        </strong>
+      </div>
 
-        <div className="actions">
-          <button type="button">Начать тренировку</button>
-          <button type="button" className="secondary">
-            Журнал
-          </button>
-        </div>
-      </section>
-    </main>
+      <div className="exercise-preview-list">
+        {workout.exercises.map((exercise) => (
+          <div className="exercise-preview" key={exercise.id}>
+            <span>{exercise.slot_name}</span>
+            <small>{exercise.planned_sets} x {exercise.planned_reps ?? "-"}</small>
+          </div>
+        ))}
+      </div>
+
+      <div className="actions">
+        <button type="button" onClick={onStart}>
+          {isStarted ? "Продолжить" : "Начать тренировку"}
+        </button>
+        <button type="button" className="secondary" onClick={onHistory}>
+          Журнал
+        </button>
+      </div>
+    </section>
   );
 }
