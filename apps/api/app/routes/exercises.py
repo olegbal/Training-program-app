@@ -11,7 +11,7 @@ from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.models.exercise import Exercise
 from app.routes.admin import require_admin
-from app.services.exercise_import import ImportStats, import_exercise_file
+from app.services.exercise_import import ImportStats, SeedStats, apply_curated_seed_file, import_exercise_file
 
 router = APIRouter(tags=["exercises"])
 
@@ -46,6 +46,15 @@ class ImportResponse(BaseModel):
     @classmethod
     def from_stats(cls, stats: ImportStats) -> "ImportResponse":
         return cls(created=stats.created, updated=stats.updated)
+
+
+class SeedResponse(BaseModel):
+    seeded: int
+    missing: int
+
+    @classmethod
+    def from_stats(cls, stats: SeedStats) -> "SeedResponse":
+        return cls(seeded=stats.seeded, missing=stats.missing)
 
 
 @router.get("/exercises", response_model=list[ExerciseRead])
@@ -103,7 +112,12 @@ def admin_import_exercises(
 
 @router.post(
     "/admin/exercises/seed-curated",
+    response_model=SeedResponse,
     dependencies=[Depends(require_admin)],
 )
-def admin_seed_curated() -> dict[str, int]:
-    return {"seeded": 0}
+def admin_seed_curated(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> SeedResponse:
+    stats = apply_curated_seed_file(db, Path(settings.curated_exercises_seed_path))
+    return SeedResponse.from_stats(stats)

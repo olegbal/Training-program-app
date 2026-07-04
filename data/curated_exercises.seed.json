@@ -1,1 +1,226 @@
-[]
+[
+  {
+    "name": "sled 45 degrees leg press",
+    "movement_pattern": "leg_press",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever leg press",
+    "movement_pattern": "leg_press",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell bulgarian split squat",
+    "movement_pattern": "lunge",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever leg extension",
+    "movement_pattern": "leg_extension",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever lying leg curl",
+    "movement_pattern": "leg_curl",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever seated leg curl",
+    "movement_pattern": "leg_curl",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever standing calf raise",
+    "movement_pattern": "calf_raise",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "front plank",
+    "movement_pattern": "anti_extension",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dead bug",
+    "movement_pattern": "anti_extension",
+    "difficulty": "beginner",
+    "curation_status": "acceptable"
+  },
+  {
+    "name": "cable wide grip lat pulldown",
+    "movement_pattern": "vertical_pull",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "cable pulldown",
+    "movement_pattern": "vertical_pull",
+    "difficulty": "beginner",
+    "curation_status": "acceptable"
+  },
+  {
+    "name": "cable seated row",
+    "movement_pattern": "horizontal_pull",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever seated row",
+    "movement_pattern": "horizontal_pull",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell one arm row",
+    "movement_pattern": "horizontal_pull",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "cable face pull",
+    "movement_pattern": "rear_delt",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever reverse fly",
+    "movement_pattern": "rear_delt",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell biceps curl",
+    "movement_pattern": "biceps_curl",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "ez barbell curl",
+    "movement_pattern": "biceps_curl",
+    "difficulty": "beginner",
+    "curation_status": "acceptable"
+  },
+  {
+    "name": "dumbbell hammer curl",
+    "movement_pattern": "biceps_curl",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "barbell romanian deadlift",
+    "movement_pattern": "hinge",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell romanian deadlift",
+    "movement_pattern": "hinge",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "barbell stiff leg deadlift",
+    "movement_pattern": "hinge",
+    "difficulty": "intermediate",
+    "curation_status": "acceptable"
+  },
+  {
+    "name": "dumbbell reverse lunge",
+    "movement_pattern": "lunge",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "hyperextension",
+    "movement_pattern": "hinge",
+    "difficulty": "beginner",
+    "curation_status": "acceptable"
+  },
+  {
+    "name": "side plank",
+    "movement_pattern": "anti_rotation",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "cable pallof press",
+    "movement_pattern": "anti_rotation",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell bench press",
+    "movement_pattern": "bench_press",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "barbell bench press",
+    "movement_pattern": "bench_press",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "lever chest press",
+    "movement_pattern": "bench_press",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell incline bench press",
+    "movement_pattern": "incline_press",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell seated shoulder press",
+    "movement_pattern": "overhead_press",
+    "difficulty": "intermediate",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "dumbbell lateral raise",
+    "movement_pattern": "lateral_raise",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "cable lateral raise",
+    "movement_pattern": "lateral_raise",
+    "difficulty": "beginner",
+    "curation_status": "acceptable"
+  },
+  {
+    "name": "cable triceps pushdown",
+    "movement_pattern": "triceps_extension",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "cable overhead triceps extension",
+    "movement_pattern": "triceps_extension",
+    "difficulty": "beginner",
+    "curation_status": "preferred"
+  },
+  {
+    "name": "barbell hip thrust",
+    "movement_pattern": "hinge",
+    "difficulty": "intermediate",
+    "curation_status": "avoid",
+    "avoid_reason": "Avoid as a main exercise for this user."
+  },
+  {
+    "name": "glute bridge",
+    "movement_pattern": "hinge",
+    "difficulty": "beginner",
+    "curation_status": "avoid",
+    "avoid_reason": "Avoid as a main exercise for this user."
+  }
+]

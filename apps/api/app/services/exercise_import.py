@@ -16,6 +16,12 @@ class ImportStats:
     updated: int = 0
 
 
+@dataclass(frozen=True)
+class SeedStats:
+    seeded: int = 0
+    missing: int = 0
+
+
 def build_media_url(path: str | None, raw_base: str | None = None) -> str | None:
     if not path:
         return None
@@ -76,6 +82,37 @@ def import_exercise_file(session: Session, input_path: Path) -> ImportStats:
     return ImportStats(created=created, updated=updated)
 
 
+def apply_curated_seed_file(session: Session, input_path: Path) -> SeedStats:
+    records = json.loads(input_path.read_text(encoding="utf-8"))
+    if not isinstance(records, list):
+        raise ValueError("Curated exercise seed must be a JSON array")
+
+    seeded = 0
+    missing = 0
+    for item in records:
+        if not isinstance(item, dict):
+            raise ValueError("Each curated seed record must be a JSON object")
+
+        exercise = _find_seed_exercise(session, item)
+        if exercise is None:
+            missing += 1
+            continue
+
+        for field in (
+            "ru_name",
+            "movement_pattern",
+            "difficulty",
+            "curation_status",
+            "avoid_reason",
+        ):
+            if field in item:
+                setattr(exercise, field, item[field])
+        seeded += 1
+
+    session.commit()
+    return SeedStats(seeded=seeded, missing=missing)
+
+
 def _as_string_list(value: object) -> list[str]:
     if value is None:
         return []
@@ -87,3 +124,11 @@ def _as_string_list(value: object) -> list[str]:
 def _is_avoided_exercise(name: str) -> bool:
     normalized = name.casefold()
     return "hip thrust" in normalized or "glute bridge" in normalized
+
+
+def _find_seed_exercise(session: Session, item: dict[str, Any]) -> Exercise | None:
+    if item.get("source_id"):
+        return session.scalars(select(Exercise).where(Exercise.source_id == str(item["source_id"]))).one_or_none()
+    if item.get("name"):
+        return session.scalars(select(Exercise).where(Exercise.name == str(item["name"]))).one_or_none()
+    raise ValueError("Curated seed record must include source_id or name")

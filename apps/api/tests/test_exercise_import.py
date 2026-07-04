@@ -3,6 +3,8 @@ from pathlib import Path
 
 from app.services.exercise_import import (
     ImportStats,
+    SeedStats,
+    apply_curated_seed_file,
     build_media_url,
     import_exercise_file,
     map_dataset_exercise,
@@ -20,16 +22,20 @@ class FakeScalarResult:
 class FakeSession:
     def __init__(self) -> None:
         self.by_source_id: dict[str, object] = {}
+        self.by_name: dict[str, object] = {}
         self.added: list[object] = []
         self.commits = 0
 
     def scalars(self, statement: object) -> FakeScalarResult:
-        source_id = statement.compile().params["source_id_1"]
-        return FakeScalarResult(self.by_source_id.get(source_id))
+        params = statement.compile().params
+        if "source_id_1" in params:
+            return FakeScalarResult(self.by_source_id.get(params["source_id_1"]))
+        return FakeScalarResult(self.by_name.get(params["name_1"]))
 
     def add(self, exercise: object) -> None:
         self.added.append(exercise)
         self.by_source_id[exercise.source_id] = exercise
+        self.by_name[exercise.name] = exercise
 
     def commit(self) -> None:
         self.commits += 1
@@ -99,3 +105,58 @@ def test_import_exercise_file_is_idempotent(tmp_path: Path) -> None:
     assert second_stats == ImportStats(created=0, updated=1)
     assert len(session.added) == 1
     assert session.commits == 2
+
+
+def test_apply_curated_seed_updates_existing_exercise_by_name(tmp_path: Path) -> None:
+    seed_path = tmp_path / "curated.json"
+    seed_path.write_text(
+        json.dumps(
+            [
+                {
+                    "name": "Dumbbell Romanian Deadlift",
+                    "ru_name": "Румынская тяга с гантелями",
+                    "movement_pattern": "hinge",
+                    "difficulty": "intermediate",
+                    "curation_status": "preferred",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    session = FakeSession()
+    session.add(
+        type(
+            "ExerciseLike",
+            (),
+            {
+                "source_id": "ex-1",
+                "name": "Dumbbell Romanian Deadlift",
+                "ru_name": None,
+                "movement_pattern": None,
+                "difficulty": None,
+                "curation_status": "unreviewed",
+                "avoid_reason": None,
+            },
+        )()
+    )
+
+    stats = apply_curated_seed_file(session, seed_path)
+    exercise = session.by_source_id["ex-1"]
+
+    assert stats == SeedStats(seeded=1, missing=0)
+    assert exercise.ru_name == "Румынская тяга с гантелями"
+    assert exercise.movement_pattern == "hinge"
+    assert exercise.difficulty == "intermediate"
+    assert exercise.curation_status == "preferred"
+    assert session.commits == 1
+
+
+def test_apply_curated_seed_reports_missing_exercise(tmp_path: Path) -> None:
+    seed_path = tmp_path / "curated.json"
+    seed_path.write_text(json.dumps([{"name": "Cable Face Pull", "curation_status": "preferred"}]), encoding="utf-8")
+    session = FakeSession()
+
+    stats = apply_curated_seed_file(session, seed_path)
+
+    assert stats == SeedStats(seeded=0, missing=1)
+    assert session.commits == 1

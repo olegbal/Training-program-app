@@ -27,7 +27,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data/exercises-dataset:/data/exercises-dataset:ro
+      - ./data:/data:ro
     depends_on:
       postgres:
         condition: service_healthy

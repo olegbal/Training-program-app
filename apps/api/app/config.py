@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     admin_secret: str = Field(default="replace_me")
 
     exercises_dataset_path: str = "/data/exercises-dataset/data/exercises.json"
+    curated_exercises_seed_path: str = "/data/curated_exercises.seed.json"
     raw_media_base: str = "https://raw.githubusercontent.com/olegbal/exercises-dataset/main/"
 
     allow_admin_endpoints: bool = False
