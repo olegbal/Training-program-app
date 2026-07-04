@@ -9,9 +9,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.dependencies.auth import get_current_user
 from app.models.exercise import Exercise
 from app.models.template import TemplateExercise, WorkoutTemplate
+from app.models.user import User
+from app.models.workout import WorkoutExercise, WorkoutSession
 from app.routes.admin import require_admin
+from app.services.workout_sessions import (
+    WorkoutSessionNotFoundError,
+    WorkoutTemplateNotFoundError,
+    complete_workout_session,
+    start_today_session,
+)
 from app.services.workout_templates import SeedTemplatesStats, project_weekday, seed_workout_templates
 
 router = APIRouter(tags=["workouts"])
@@ -86,6 +95,32 @@ def get_today_workout(
     )
 
 
+@router.post("/workouts/today/start", response_model=TodayWorkoutRead)
+def start_today_workout(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    requested_date: Annotated[date | None, Query(alias="date")] = None,
+) -> TodayWorkoutRead:
+    try:
+        session = start_today_session(db, user=current_user, requested_date=requested_date or date.today())
+    except WorkoutTemplateNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout template is not seeded") from None
+    return _serialize_workout_session(session)
+
+
+@router.post("/workouts/{session_id}/complete", response_model=TodayWorkoutRead)
+def complete_workout(
+    session_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> TodayWorkoutRead:
+    try:
+        session = complete_workout_session(db, user=current_user, session_id=session_id)
+    except WorkoutSessionNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workout session was not found") from None
+    return _serialize_workout_session(session)
+
+
 def _serialize_template_exercise(item: TemplateExercise) -> TodayExerciseRead:
     return TodayExerciseRead(
         id=item.id,
@@ -95,6 +130,35 @@ def _serialize_template_exercise(item: TemplateExercise) -> TodayExerciseRead:
         planned_reps=item.reps_text or _optional_range_text(item.reps_min, item.reps_max),
         planned_rpe=_rpe_text(item.rpe_min, item.rpe_max),
         rest=_rest_text(item.rest_seconds_min, item.rest_seconds_max),
+        exercise=_serialize_exercise(item.exercise),
+        sets=[],
+    )
+
+
+def _serialize_workout_session(session: WorkoutSession) -> TodayWorkoutRead:
+    focus = session.template.focus if session.template is not None else ""
+    return TodayWorkoutRead(
+        session=TodaySessionRead(
+            id=session.id,
+            date=session.date,
+            title=session.title,
+            day_type=session.day_type,
+            focus=focus,
+            status=session.status,
+        ),
+        exercises=[_serialize_workout_exercise(item) for item in session.workout_exercises],
+    )
+
+
+def _serialize_workout_exercise(item: WorkoutExercise) -> TodayExerciseRead:
+    return TodayExerciseRead(
+        id=item.id,
+        slot_name=item.slot_name,
+        status=item.status,
+        planned_sets=_range_text(item.planned_sets_min, item.planned_sets_max),
+        planned_reps=item.reps_text,
+        planned_rpe=item.rpe_text,
+        rest=item.rest_text,
         exercise=_serialize_exercise(item.exercise),
         sets=[],
     )
