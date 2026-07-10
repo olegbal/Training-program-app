@@ -18,11 +18,16 @@ class FakeScalarResult:
     def one_or_none(self) -> object | None:
         return self.value
 
+    def first(self) -> object | None:
+        if isinstance(self.value, list):
+            return self.value[0] if self.value else None
+        return self.value
+
 
 class FakeSession:
     def __init__(self) -> None:
         self.by_source_id: dict[str, object] = {}
-        self.by_name: dict[str, object] = {}
+        self.by_name: dict[str, object | list[object]] = {}
         self.added: list[object] = []
         self.commits = 0
 
@@ -159,6 +164,30 @@ def test_apply_curated_seed_reports_missing_exercise(tmp_path: Path) -> None:
     stats = apply_curated_seed_file(session, seed_path)
 
     assert stats == SeedStats(seeded=0, missing=1)
+    assert session.commits == 1
+
+
+def test_apply_curated_seed_uses_first_source_id_when_name_is_duplicated(tmp_path: Path) -> None:
+    seed_path = tmp_path / "curated.json"
+    seed_path.write_text(json.dumps([{"name": "Lever Chest Press", "curation_status": "preferred"}]), encoding="utf-8")
+    session = FakeSession()
+    first = type(
+        "ExerciseLike",
+        (),
+        {"source_id": "0576", "name": "Lever Chest Press", "curation_status": "unreviewed"},
+    )()
+    second = type(
+        "ExerciseLike",
+        (),
+        {"source_id": "0577", "name": "Lever Chest Press", "curation_status": "unreviewed"},
+    )()
+    session.by_name["Lever Chest Press"] = [first, second]
+
+    stats = apply_curated_seed_file(session, seed_path)
+
+    assert stats == SeedStats(seeded=1, missing=0)
+    assert first.curation_status == "preferred"
+    assert second.curation_status == "unreviewed"
     assert session.commits == 1
 
 

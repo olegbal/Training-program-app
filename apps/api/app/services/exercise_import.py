@@ -140,5 +140,7 @@ def _find_seed_exercise(session: Session, item: dict[str, Any]) -> Exercise | No
     if item.get("source_id"):
         return session.scalars(select(Exercise).where(Exercise.source_id == str(item["source_id"]))).one_or_none()
     if item.get("name"):
-        return session.scalars(select(Exercise).where(Exercise.name == str(item["name"]))).one_or_none()
+        return session.scalars(
+            select(Exercise).where(Exercise.name == str(item["name"])).order_by(Exercise.source_id)
+        ).first()
     raise ValueError("Curated seed record must include source_id or name")
