@@ -33,6 +33,8 @@ Local URLs:
 - API direct: `http://localhost:8000/health`
 - Vite direct: `http://localhost:5173`
 
+To test the Mini App inside Telegram without configuring a custom domain, follow [the Cloudflare Quick Tunnel runbook](docs/quick-tunnel-testing.md).
+
 ## Environment
 
 Create `.env` from the example:
