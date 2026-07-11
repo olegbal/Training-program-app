@@ -1,0 +1,12 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --url
+      - http://caddy:80
+    depends_on:
+      caddy:
+        condition: service_started
+    restart: "no"
