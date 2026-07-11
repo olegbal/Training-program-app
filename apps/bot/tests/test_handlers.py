@@ -1,8 +1,10 @@
 import asyncio
 from types import SimpleNamespace
 
+from aiogram.types import InlineKeyboardMarkup
+
 from app.config import BotSettings
-from app.handlers import start, today
+from app.handlers import mini_app_keyboard, start, today
 from app.messages import format_today_message
 
 
@@ -37,6 +39,18 @@ class FakeApiClient:
                 {"slot_name": "Планка", "planned_sets": "2-3", "planned_reps": "time"},
             ],
         }
+
+
+def test_mini_app_keyboard_uses_inline_web_app_button() -> None:
+    settings = BotSettings(mini_app_url="https://training.example.com")
+
+    markup = mini_app_keyboard(settings)
+
+    assert isinstance(markup, InlineKeyboardMarkup)
+    button = markup.inline_keyboard[0][0]
+    assert button.text == "Открыть тренировку"
+    assert button.web_app is not None
+    assert button.web_app.url == "https://training.example.com"
 
 
 def test_format_today_message_includes_title_and_exercises() -> None:

@@ -1,6 +1,6 @@
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
 
 from app.api_client import TrainingApiClient
 from app.config import BotSettings
@@ -9,17 +9,16 @@ from app.messages import access_denied_message, format_today_message, help_messa
 router = Router()
 
 
-def mini_app_keyboard(settings: BotSettings) -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
+def mini_app_keyboard(settings: BotSettings) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
             [
-                KeyboardButton(
+                InlineKeyboardButton(
                     text="Открыть тренировку",
                     web_app=WebAppInfo(url=settings.mini_app_url),
                 )
             ]
         ],
-        resize_keyboard=True,
     )
 
 
