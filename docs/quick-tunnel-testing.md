@@ -38,12 +38,13 @@ Set these values in `.env`:
 APP_URL=https://generated-name.trycloudflare.com
 MINI_APP_URL=https://generated-name.trycloudflare.com
 API_URL=http://api:8000
+VITE_ALLOWED_HOST=generated-name.trycloudflare.com
 ```
 
-Start or recreate the bot:
+Recreate the Mini App with the exact allowed hostname, then start or recreate the bot:
 
 ```bash
-docker compose up -d --force-recreate bot
+docker compose up -d --force-recreate mini-app bot
 ```
 
 ## 5. Verify
@@ -62,4 +63,4 @@ Open the bot in Telegram, run `/start`, and launch the Mini App. Verify today's 
 docker compose -f docker-compose.yml -f docker-compose.quick-tunnel.yml down
 ```
 
-Every new Quick Tunnel container may receive a different hostname. When it changes, update `.env` and recreate the bot again.
+Every new Quick Tunnel container may receive a different hostname. When it changes, update `.env` and recreate the Mini App and bot again.
