@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -57,11 +58,20 @@ def auth_telegram(
             first_name=telegram_user.first_name,
         )
         db.add(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            user = db.scalars(select(User).where(User.telegram_id == telegram_user.telegram_id)).one_or_none()
+            if user is None:
+                raise
+            user.username = telegram_user.username
+            user.first_name = telegram_user.first_name
+            db.commit()
     else:
         user.username = telegram_user.username
         user.first_name = telegram_user.first_name
-
-    db.commit()
+        db.commit()
     db.refresh(user)
     access_token = create_access_token(
         {"sub": str(user.id), "telegram_id": user.telegram_id},

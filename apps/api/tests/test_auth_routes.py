@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from app.config import Settings, get_settings
 from app.db.session import get_db
@@ -39,6 +40,37 @@ class FakeSession:
     def refresh(self, user: User) -> None:
         if user.id is None:
             user.id = uuid.uuid4()
+        return None
+
+
+class RacingFakeSession:
+    def __init__(self) -> None:
+        self.existing_user = User(
+            id=uuid.uuid4(),
+            telegram_id=123456789,
+            username="old-name",
+            first_name="Old",
+        )
+        self.lookups = 0
+        self.commits = 0
+        self.rollbacks = 0
+
+    def scalars(self, statement: object) -> FakeScalarResult:
+        self.lookups += 1
+        return FakeScalarResult(None if self.lookups == 1 else self.existing_user)
+
+    def add(self, user: User) -> None:
+        return None
+
+    def commit(self) -> None:
+        if self.rollbacks == 0:
+            raise IntegrityError("INSERT INTO users", {}, Exception("duplicate telegram_id"))
+        self.commits += 1
+
+    def rollback(self) -> None:
+        self.rollbacks += 1
+
+    def refresh(self, user: User) -> None:
         return None
 
 
@@ -87,6 +119,40 @@ def test_auth_telegram_creates_user_and_returns_jwt() -> None:
     assert session.commits == 1
     payload = decode_access_token(response.json()["access_token"], secret="jwt-secret")
     assert payload["telegram_id"] == 123456789
+
+
+def test_auth_telegram_recovers_when_concurrent_request_creates_user() -> None:
+    session = RacingFakeSession()
+    app = create_app()
+    settings = Settings(
+        telegram_bot_token="123:bot-token",
+        telegram_allowed_user_ids=[123456789],
+        jwt_secret="jwt-secret",
+    )
+
+    def override_db() -> Iterator[RacingFakeSession]:
+        yield session
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_settings] = lambda: settings
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.post(
+        "/auth/telegram",
+        json={
+            "init_data": signed_init_data(
+                "123:bot-token",
+                {"id": 123456789, "username": "coach", "first_name": "Alex"},
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user"]["id"] == str(session.existing_user.id)
+    assert session.existing_user.username == "coach"
+    assert session.existing_user.first_name == "Alex"
+    assert session.rollbacks == 1
+    assert session.commits == 1
 
 
 def test_auth_telegram_rejects_invalid_init_data() -> None:
